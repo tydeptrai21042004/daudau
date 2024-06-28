@@ -64,12 +64,8 @@ document.addEventListener('keydown', function(event) {
         zoomOut();
     } else if (event.key === 'e') {
         removeEmptyRows();
-        deleteNanObjects();
     } 
 });
-// Add event listener for the 'e' key to delete NaN labeled objects
-
-  
 // Define an array of colors
 var colors = ['white','black','red', 'blue', 'green', 'yellow', 'purple']; // Add more colors as needed
 
@@ -107,6 +103,7 @@ function changeColorstroke(property) {
         }
     }
 }
+var colorsfill = ['white','black','red', 'blue', 'green', 'yellow', 'purple',''];
 function changeColorfill(property) {
     var activeObject = canvas.getActiveObject();
     if (activeObject) {
@@ -116,18 +113,18 @@ function changeColorfill(property) {
                 case 'line':
                 case 'arrow':
                 case 'rectangle':
-                    activeObject.set({ fill: colors[colorIndex] });
+                    activeObject.set({ fill: colorsfill[colorIndex] });
                     break;
                 case 'circle':
                 case 'customShape':
-                    activeObject.set({ fill: colors[colorIndex] });
+                    activeObject.set({ fill: colorsfill[colorIndex] });
                     break;
                 default:
                     break;
             }
             canvas.renderAll();
             // Increment colorIndex and wrap around if exceeding array length
-            colorIndex = (colorIndex + 1) % colors.length;
+            colorIndex = (colorIndex + 1) % colorsfill.length;
         }
     }
 }
@@ -186,24 +183,74 @@ canvas.on('mouse:down', function(o) {
 });
 
 // Function to handle image upload
+var imageObject;  // Global variable to store the current image object
+
 function handleImage(e) {
     var reader = new FileReader();
     reader.onload = function(event) {
         var imgObj = new Image();
         imgObj.src = event.target.result;
         imgObj.onload = function() {
-            var img = new fabric.Image(imgObj, {
-                selectable: false,  // Ensure the image is not selectable
-                evented: false
+            // Remove previous image if exists
+            if (imageObject) {
+                canvas.remove(imageObject);
+            }
+            
+            // Create a new Fabric.js image object
+            imageObject = new fabric.Image(imgObj, {
+                selectable: true,
+                evented: true
             });
-            images.push(img);
-            canvas.add(img);
-            canvas.sendToBack(img);  // Ensure the image is at the back
+            
+            // Add image to canvas and handle layering
+            canvas.add(imageObject);
+            canvas.sendToBack(imageObject);  // Ensure the image is at the back
             canvas.renderAll();
         }
     }
     reader.readAsDataURL(e.target.files[0]);
 }
+
+// Example: If you're using a key listener for 'Delete' key press
+// Event listener for 'Delete' key press
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Delete') {
+        console.log('Delete key pressed. Deleting image and shapes...');
+        deleteImageAndShapes(); // Call the function
+    }
+});
+
+
+function deleteImageAndShapes() {
+    // Remove the image from the canvas if imageObject is defined
+    if (imageObject) {
+        canvas.remove(imageObject);
+        imageObject = null; // Clear the reference to the image object
+    } else {
+        console.warn('No image object found to delete.');
+    }
+
+    // Remove all shapes from the canvas
+    var objectsToRemove = [];
+    canvas.getObjects().forEach(obj => {
+        if (obj.type !== 'image') {
+            objectsToRemove.push(obj);
+        }
+    });
+
+    objectsToRemove.forEach(obj => {
+        canvas.remove(obj);
+    });
+
+    // Clear any associated data or arrays tracking shapes (optional)
+    clearAnnotationData(); // Example function to clear associated data
+
+    // Update your UI or perform any other necessary actions
+    canvas.renderAll(); // Render the canvas after removal
+}
+
+// Assuming you have a key listener or a button click event to trigger this function
+
 // Function to copy selected object
 function copy() {
     canvas.getActiveObject().clone(function(cloned) {
@@ -562,21 +609,79 @@ function drawCustomShape() {
 }
 
 
-// Function to delete selected annotation
+// Initialize array to store deleted objects
+var deletedObjects = [];
+
 function deleteSelected() {
-    var activeObject = canvas.getActiveObject();
-    if (activeObject) {
-        var number = parseInt(activeObject.text.text);
-        canvas.remove(activeObject);
-        if (annotationMap[number]  ) {
-            removeAnnotationText(number); // Call the new function to remove text label
-            deleteAnnotationText(number);
-            delete annotationMap[number];
-        }
-        deleteAnnotationRow(number);
+    var activeObjects = canvas.getActiveObjects(); // Get all active objects
+    if (activeObjects.length) {
+        activeObjects.forEach(function(activeObject) {
+            if (activeObject.type === 'image') {
+                canvas.remove(activeObject); // Remove the image object
+                // Handle any specific actions related to image removal
+            } else {
+                var number = parseInt(activeObject.text.text);
+                
+                // Store deleted object and its associated data
+                deletedObjects.push({
+                    object: activeObject,
+                    number: number
+                });
+
+                canvas.remove(activeObject); // Remove the shape object
+
+                // Handle annotations associated with the shape
+                if (annotationMap[number]) {
+                    removeAnnotationText(number);
+                    deleteAnnotationText(number);
+                    delete annotationMap[number];
+                }
+                deleteAnnotationRow(number);
+            }
+        });
+        canvas.discardActiveObject(); // Deselect all objects
+        canvas.renderAll();
+
+        console.log('Deleted objects:', deletedObjects); // For debugging
     }
 }
 
+
+/*
+// Function to delete selected annotations
+function deleteSelected() {
+    var activeObjects = canvas.getActiveObjects(); // Get all active objects
+    if (activeObjects.length) {
+        activeObjects.forEach(function(activeObject) {
+            if (activeObject.type === 'image') {
+                canvas.remove(activeObject); // Remove the image object
+                // Handle any specific actions related to image removal
+            } else {
+                var number = parseInt(activeObject.text.text);
+                canvas.remove(activeObject); // Remove the shape object
+
+                // Handle annotations associated with the shape
+                if (annotationMap[number]) {
+                    removeAnnotationText(number);
+                    deleteAnnotationText(number);
+                    delete annotationMap[number];
+                }
+                deleteAnnotationRow(number);
+            }
+        });
+        canvas.discardActiveObject(); // Deselect all objects
+        canvas.renderAll();
+    }
+}
+*/
+
+
+// Function to remove annotation text
+function removeAnnotationText(number) {
+    if (annotationMap[number] && annotationMap[number].text) {
+        canvas.remove(annotationMap[number].text);
+    }
+}
 function removeAnnotationText(number) {
     if (annotationMap[number] && annotationMap[number].text) {
         canvas.remove(annotationMap[number].text);
@@ -684,11 +789,12 @@ function deleteAnnotationRow(number) {
 function updateAnnotationNumber(oldNumber, newNumber) {
     canvas.discardActiveObject();
     newNumber = parseInt(newNumber);
-    if ( !isNaN(newNumber) && newNumber in annotationMap) {
+    if (newNumber in annotationMap) {
         alert("Number already exists.");
         updateTableRowNumber(newNumber, oldNumber); // Revert back to old number if new number already exists
         return;
     }
+    
     var annotation = annotationMap[oldNumber];
     if (annotation) {
         annotationMap[newNumber] = annotation;
@@ -709,6 +815,7 @@ function updateAnnotationNumber(oldNumber, newNumber) {
 }
 
 
+
 // Function to update annotation number in table row
 function updateTableRowNumber(oldNumber, newNumber) {
     var table = document.getElementById('annotationTable').getElementsByTagName('tbody')[0];
@@ -724,23 +831,11 @@ function updateTableRowNumber(oldNumber, newNumber) {
 function sortTable() {
     var table = document.getElementById('annotationTable').getElementsByTagName('tbody')[0];
     var rows = Array.from(table.rows);
-
-    rows.sort(function(a, b) {
-        var aNum = parseInt(a.cells[0].getElementsByTagName('input')[0].value);
-        var bNum = parseInt(b.cells[0].getElementsByTagName('input')[0].value);
-        return aNum - bNum;
-    });
-
-    rows.forEach(function(row) {
-        table.appendChild(row);
-    });
-}
-function updateAnnotationDescription(number, description) {
-    // Update annotation description in your data model if needed
+    rows.sort((a, b) => parseInt(a.cells[0].getElementsByTagName('input')[0].value) - parseInt(b.cells[0].getElementsByTagName('input')[0].value));
+    rows.forEach(row => table.appendChild(row));
 }
 
 // Function to add number label associated with an annotation object
-/*
 function addNumberLabel(number, obj) {
     if (number === null) return;
     var text = new fabric.Text(String(number), {
@@ -753,20 +848,6 @@ function addNumberLabel(number, obj) {
     });
     obj.text = text;
     canvas.add(text);
-}
-*/
-
-function addNumberLabel(number, object) {
-    var text = new fabric.Text(String(number), {
-        fontSize: 20,
-        left: object.left,
-        top: object.top - 20,
-        fill: 'red',
-        selectable: false,
-        evented: false
-    });
-    canvas.add(text);
-    object.text = text; // Link the text label to the object
 }
 
 // Event listener for updating number label positions when objects are moved, scaled, or rotated
@@ -791,70 +872,26 @@ function updateNumberLabelPosition(e) {
 // Function to remove rows without number column values and corresponding shapes with NaN labels
 // Function to remove rows without number column values and corresponding shapes with NaN labels
 // Function to remove rows without number column values and corresponding shapes with NaN labels
-/*
 function removeEmptyRows() {
     var table = document.getElementById('annotationTable').getElementsByTagName('tbody')[0];
-
-    // Create an array to keep track of numbers to delete after iterating
-    var numbersToDelete = [];
-
+    
     for (var i = table.rows.length - 1; i >= 0; i--) {
         var inputElement = table.rows[i].cells[0].getElementsByTagName('input')[0];
         var value = parseInt(inputElement.value);
-
+        
         if (isNaN(value)) {
-            numbersToDelete.push(value);
-            table.deleteRow(i);
-        }
-    }
-
-    // Now delete corresponding shapes from the canvas
-    numbersToDelete.forEach(function(number) {
-        var shapeToRemove = annotationMap[number];
-        if (shapeToRemove) {
-            deleteSelecteds(shapeToRemove);
-        }
-    });
-
-    canvas.renderAll();
-}
-*/
-// Function to remove empty rows from the annotation table
-function removeEmptyRows() {
-    var table = document.getElementById('annotationTable').getElementsByTagName('tbody')[0];
-    for (var i = table.rows.length - 1; i >= 0; i--) {
-        var row = table.rows[i];
-        var number = row.cells[0].getElementsByTagName('input')[0].value;
-        if (number === '') {
-            table.deleteRow(i);
-        }
-    }
-}
-
-// Function to delete NaN labeled objects
-function deleteNanObjects() {
-    for (var number in annotationMap) {
-        if (isNaN(parseInt(number))) {
-            var shape = annotationMap[number];
-            if (shape) {
-                canvas.remove(shape);
-                deleteAnnotationText(shape);
+            // Remove corresponding shape from canvas and its associated text label
+            var shapeToRemove = annotationMap[value];
+            if (shapeToRemove) {
+                canvas.remove(shapeToRemove);
+                delete annotationMap[value];
+                deleteAnnotationText(shapeToRemove); // Delete associated text label
             }
-            delete annotationMap[number];
+            // Delete row from table regardless of NaN label
+            table.deleteRow(i);
         }
     }
-}
-setDrawingMode(null);
-resetCanvasListeners();
-// Modified deleteSelected function to accept shape parameter
-function deleteSelecteds(shape) {
-    var number = parseInt(shape.text.text);
-    canvas.remove(shape);
-    if (annotationMap[number]) {
-        deleteAnnotationText(shape); // Assuming this function handles text deletion
-        delete annotationMap[number];
-    }
-    deleteAnnotationRow(number);
+    canvas.renderAll();
 }
 
 // Function to delete annotation text label associated with a shape
@@ -863,6 +900,7 @@ function deleteAnnotationText(shape) {
         canvas.remove(shape.text);
     }
 }
+
 
 
 // Initialize drawing functionalities
@@ -882,4 +920,77 @@ function updateAnnotationColor(number, color) {
     // Custom logic to handle color updates
     console.log(`Annotation ${number} color updated to: ${color}`);
 }
+// Initialize history array
+// Stacks to store history for undo and redo
+var undoStack = [];
+var redoStack = [];
 
+// Function to get the current state including annotations and table rows
+function getCurrentState() {
+    return {
+        canvas: JSON.stringify(canvas.toJSON()),
+        annotationMap: JSON.stringify(annotationMap),
+        tableRows: document.getElementById('annotationTable').innerHTML
+    };
+}
+
+// Function to save the current state to undo stack
+function saveState() {
+    undoStack.push(getCurrentState());
+    redoStack = []; // Clear redo stack when a new action is performed
+}
+/*
+// Function to restore state from stack
+function restoreState(stack, oppositeStack) {
+    if (stack.length > 0) {
+        var state = stack.pop();
+        oppositeStack.push(getCurrentState());
+
+        // Restore canvas state
+        canvas.loadFromJSON(state.canvas, canvas.renderAll.bind(canvas));
+
+        // Restore annotations
+        annotationMap = JSON.parse(state.annotationMap);
+
+        // Restore table rows
+        document.getElementById('annotationTable').innerHTML = state.tableRows;
+    }
+}
+ */   
+function undoDelete() {
+    if (deletedObjects.length > 0) {
+        var lastDeleted = deletedObjects.pop(); // Retrieve the last deleted object
+
+        // Restore the shape object to the canvas
+        canvas.add(lastDeleted.object);
+
+        // Restore annotation data
+        annotationMap[lastDeleted.number] = lastDeleted.object;
+        addAnnotationRow(lastDeleted.number);
+        addNumberLabel(lastDeleted.number, lastDeleted.object);
+
+        // Re-sort the table if needed
+        sortTable();
+
+        canvas.renderAll();
+    } else {
+        console.log('No objects to undo.');
+    }
+}
+
+
+
+// Event listener for keydown
+document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey && e.key === 'z') {
+        //restoreState(undoStack, redoStack); // Undo action
+        undoDelete();
+    } else if (e.ctrlKey && e.key === 'y') {
+        //restoreState(redoStack, undoStack); // Redo action
+    }
+});
+
+// Save state on every modification
+canvas.on('object:added', saveState);
+canvas.on('object:modified', saveState);
+canvas.on('object:removed', saveState);
