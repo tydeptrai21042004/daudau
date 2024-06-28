@@ -724,11 +724,23 @@ function updateTableRowNumber(oldNumber, newNumber) {
 function sortTable() {
     var table = document.getElementById('annotationTable').getElementsByTagName('tbody')[0];
     var rows = Array.from(table.rows);
-    rows.sort((a, b) => parseInt(a.cells[0].getElementsByTagName('input')[0].value) - parseInt(b.cells[0].getElementsByTagName('input')[0].value));
-    rows.forEach(row => table.appendChild(row));
+
+    rows.sort(function(a, b) {
+        var aNum = parseInt(a.cells[0].getElementsByTagName('input')[0].value);
+        var bNum = parseInt(b.cells[0].getElementsByTagName('input')[0].value);
+        return aNum - bNum;
+    });
+
+    rows.forEach(function(row) {
+        table.appendChild(row);
+    });
+}
+function updateAnnotationDescription(number, description) {
+    // Update annotation description in your data model if needed
 }
 
 // Function to add number label associated with an annotation object
+/*
 function addNumberLabel(number, obj) {
     if (number === null) return;
     var text = new fabric.Text(String(number), {
@@ -741,6 +753,20 @@ function addNumberLabel(number, obj) {
     });
     obj.text = text;
     canvas.add(text);
+}
+*/
+
+function addNumberLabel(number, object) {
+    var text = new fabric.Text(String(number), {
+        fontSize: 20,
+        left: object.left,
+        top: object.top - 20,
+        fill: 'red',
+        selectable: false,
+        evented: false
+    });
+    canvas.add(text);
+    object.text = text; // Link the text label to the object
 }
 
 // Event listener for updating number label positions when objects are moved, scaled, or rotated
@@ -765,6 +791,7 @@ function updateNumberLabelPosition(e) {
 // Function to remove rows without number column values and corresponding shapes with NaN labels
 // Function to remove rows without number column values and corresponding shapes with NaN labels
 // Function to remove rows without number column values and corresponding shapes with NaN labels
+/*
 function removeEmptyRows() {
     var table = document.getElementById('annotationTable').getElementsByTagName('tbody')[0];
 
@@ -791,7 +818,34 @@ function removeEmptyRows() {
 
     canvas.renderAll();
 }
+*/
+// Function to remove empty rows from the annotation table
+function removeEmptyRows() {
+    var table = document.getElementById('annotationTable').getElementsByTagName('tbody')[0];
+    for (var i = table.rows.length - 1; i >= 0; i--) {
+        var row = table.rows[i];
+        var number = row.cells[0].getElementsByTagName('input')[0].value;
+        if (number === '') {
+            table.deleteRow(i);
+        }
+    }
+}
 
+// Function to delete NaN labeled objects
+function deleteNanObjects() {
+    for (var number in annotationMap) {
+        if (isNaN(parseInt(number))) {
+            var shape = annotationMap[number];
+            if (shape) {
+                canvas.remove(shape);
+                deleteAnnotationText(shape);
+            }
+            delete annotationMap[number];
+        }
+    }
+}
+setDrawingMode(null);
+resetCanvasListeners();
 // Modified deleteSelected function to accept shape parameter
 function deleteSelecteds(shape) {
     var number = parseInt(shape.text.text);
