@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Annotation App</title>
+    <link rel="stylesheet" href="new.css">
+</head>
+<body>
+    <div class="container">
+        <div class="toolbar">
+            <input type="file" id="imageLoader" name="imageLoader" class="file-input"/>
+            <button id="drawLine" class="btn">Draw Line</button>
+            <button id="drawCircle" class="btn">Draw Circle</button>
+            <button id="drawArrow" class="btn">Draw Arrow</button>
+            <button id="drawRectangle" class="btn">Draw Rectangle</button>
+            <button id="drawCustomShape" class="btn">Draw Custom Shape</button>
+            <button id="deleteAnnotation" class="btn">Delete Selected</button>
+            <button id="zoomIn" class="btn">Zoom In</button>
+            <button id="zoomOut" class="btn">Zoom Out</button>
+        </div>
+        <div class="canvas-container">
+            
+            <canvas id="imageCanvas" width="1200" height="500"></canvas>
+            <input type="color" id="colorPicker" style="display:none;">
+        </div>
+        <div class="table-container">
+            <table id="annotationTable">
+                <thead>
+                    <tr>
+                        <th>Number</th>
+                        <th>Description</th>
+                        <th>Color</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/4.5.0/fabric.min.js"></script>
+    <script src="new.js"></script>
+</body>
+</html>
